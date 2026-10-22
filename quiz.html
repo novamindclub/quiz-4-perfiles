@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="es-AR" data-tema="oscuro">
+<head>
+<!-- ═══════════════════════════════════════════════════════════════
+     NOVAMIND · BLOQUE DE TRACKING
+     Va pegado dentro de <head>, lo más arriba posible,
+     en TODAS las páginas del funnel. Es idéntico en todas.
+     Lo único que se edita son las 4 líneas de NM.cfg.
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+window.NM = window.NM || {};
+
+/* ══════════ LO ÚNICO QUE SE EDITA ══════════ */
+NM.cfg = {
+  PIXEL_ID:      '979981567128557',                          // ID del Pixel de Meta, solo números
+  GTM_ID:        'GTM-5D5FXKWS',                          // GTM-XXXXXXX
+  POSTHOG_KEY:   'phc_nLzWkCeCw8du6dujT2fVWzLW2QbuFK5ZsrCFngyEgCPa',                          // phc_...
+  POSTHOG_HOST:  'https://us.i.posthog.com'   // o https://eu.i.posthog.com
+};
+/* ═══════════════════════════════════════════ */
+
+/* Eventos que Meta reconoce como estándar. El resto van como personalizados. */
+NM.ESTANDAR = ['PageView','ViewContent','Lead','InitiateCheckout','CompleteRegistration',
+               'Subscribe','Contact','AddToCart','Purchase','Search','StartTrial'];
+
+window.dataLayer = window.dataLayer || [];
+
+/* Un id por evento, para que el día que montes la API de Conversiones
+   Meta no cuente dos veces el mismo Lead. */
+NM._ids = {};
+NM.eventId = function(nombre){
+  if (!NM._ids[nombre]) {
+    NM._ids[nombre] = 'nm_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+  return NM._ids[nombre];
+};
+
+/* Los UTM de la URL, para que viajen con cada evento. */
+NM.utm = (function(){
+  try{
+    var q = new URLSearchParams(location.search), o = {};
+    ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','placement','fbclid','gclid']
+      .forEach(function(k){ var v = q.get(k); if (v) o[k] = v.slice(0,120); });
+    if (Object.keys(o).length) sessionStorage.setItem('nm_utm', JSON.stringify(o));
+    else { var g = sessionStorage.getItem('nm_utm'); if (g) return JSON.parse(g); }
+    return o;
+  }catch(e){ return {}; }
+})();
+
+/* UN solo disparador para todo: Meta, GTM, GA4 y PostHog. */
+NM.track = function(nombre, props){
+  props = props || {};
+  var id = NM.eventId(nombre);
+  var datos = {};
+  for (var k in NM.utm) datos[k] = NM.utm[k];
+  for (var j in props) datos[j] = props[j];
+
+  try{ window.dataLayer.push(Object.assign({event:nombre, nm_event_id:id}, datos)); }catch(e){}
+
+  try{
+    if (typeof fbq === 'function'){
+      if (NM.ESTANDAR.indexOf(nombre) >= 0) fbq('track', nombre, props, {eventID:id});
+      else fbq('trackCustom', nombre, props, {eventID:id});
+    }
+  }catch(e){}
+
+  try{ if (window.posthog && posthog.capture) posthog.capture(nombre, datos); }catch(e){}
+  try{ if (typeof gtag === 'function') gtag('event', nombre, datos); }catch(e){}
+};
+
+/* Identifica a la persona en PostHog cuando deja el mail. */
+NM.identificar = function(email, extra){
+  try{ if (window.posthog && posthog.identify) posthog.identify(email, extra || {}); }catch(e){}
+};
+
+/* ── Meta Pixel ── */
+(function(){
+  if (!NM.cfg.PIXEL_ID) return;
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+  (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', NM.cfg.PIXEL_ID);
+  fbq('track','PageView');
+})();
+
+/* ── Google Tag Manager ── */
+(function(w,d,s,l,i){
+  if(!i) return;
+  w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});
+  var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+  j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+  f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer',NM.cfg.GTM_ID);
+
+/* ── PostHog ── */
+(function(){
+  if (!NM.cfg.POSTHOG_KEY) return;
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){
+  function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]);
+  t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}
+  (p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,
+  p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);
+  var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){
+  var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){
+  return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),
+  n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init(NM.cfg.POSTHOG_KEY, {
+    api_host: NM.cfg.POSTHOG_HOST,
+    person_profiles: 'identified_only',
+    capture_pageview: true,
+    session_recording: { maskAllInputs: true, maskInputOptions: { password: true } }
+  });
+})();
+</script>
+<!-- ═══════════ FIN DEL BLOQUE DE TRACKING ═══════════ -->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tu perfil de caos — Novamind</title>
+<meta name="description" content="Test gratis de 60 segundos. Hay cuatro formas de perder el día. Descubrí cuál es la tuya y el antídoto exacto para esa.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0C0C0B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     NOVAMIND — QUIZ DE PERFIL DE CAOS
+     Mismo sistema de diseño que la portada.
+     Lo único que hay que editar es el bloque CONFIG (buscá "CONFIG").
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<style>
+/* ═══ TOKENS DE MARCA ═══ */
+:root{
+  --acento:#E0AE5E;
+  --tinta:#E0AE5E;
+  --bg:#0C0C0B; --fg:#EFECE5; --fg2:#CFCBC2;
+  --muted:#A19D93; --muted2:#8E8A80; --faint:#6E6A62;
+  --line:#22221F; --line2:#2A2A26; --line3:#34342F;
+  --s1:#121210; --s2:#141412; --s3:#171715; --s4:#1C1C19;
+  --glass:rgba(12,12,11,.86); --inv:#EFECE5; --on-inv:#0C0C0B;
+  --sobre-acento:#141210;
+  --alerta:#E08F6E;
+  --curva:cubic-bezier(.2,.7,.25,1);
+}
+:root[data-tema="claro"]{
+  --tinta:#7B6034;
+  --bg:#F6F4EF; --fg:#151411; --fg2:#33312C;
+  --muted:#5E5A52; --muted2:#6B675F; --faint:#8A857B;
+  --line:#E3DFD6; --line2:#D8D3C8; --line3:#C9C3B7;
+  --s1:#FBFAF7; --s2:#ECE8E0; --s3:#FFFFFF; --s4:#E8E3D9;
+  --glass:rgba(246,244,239,.9); --inv:#151411; --on-inv:#F6F4EF;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+html{-webkit-text-size-adjust:100%;background:var(--bg)}
+body{
+  font-family:'Geist',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--fg);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;min-height:100svh;display:flex;
+  transition:background .3s var(--curva),color .3s var(--curva);
+  padding:calc(96px + env(safe-area-inset-top,0px)) 20px calc(56px + env(safe-area-inset-bottom,0px));
+}
+.serif{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+
+/* ═══ CABEZAL ═══ */
+.tope{
+  position:fixed;top:0;left:0;right:0;z-index:30;
+  padding-top:env(safe-area-inset-top,0px);
+  background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.tope-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px 12px}
+.marca{display:flex;align-items:center;gap:10px}
+.sello{width:26px;height:26px;border-radius:13px;border:1.5px solid var(--fg);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.sello i{width:9px;height:9px;border-radius:5px;background:var(--acento);display:block}
+.marca span{font-size:14px;font-weight:600;letter-spacing:.18em}
+.tope-der{display:flex;align-items:center;gap:10px}
+.paso{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);white-space:nowrap}
+.b-tema{
+  width:34px;height:34px;border-radius:17px;border:1px solid var(--line3);
+  background:transparent;color:var(--fg);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex:0 0 auto;
+}
+.b-tema svg{width:15px;height:15px}
+.b-tema .luna{display:none}
+:root[data-tema="claro"] .b-tema .sol{display:none}
+:root[data-tema="claro"] .b-tema .luna{display:block}
+.riel{display:flex;gap:4px;padding:0 20px 12px}
+.riel span{flex:1;height:3px;border-radius:2px;background:var(--line2);transition:background .35s var(--curva)}
+.riel span.lleno{background:var(--acento)}
+
+/* ═══ ESCENARIO ═══ */
+.escena{margin:auto;width:100%;max-width:560px}
+.vista{display:none}
+.vista.viva{display:block;animation:entra .5s var(--curva) both}
+.vista.sale{animation:sale .18s var(--curva) both}
+@keyframes entra{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes sale{from{opacity:1}to{opacity:0;transform:translateY(-10px)}}
+@media(prefers-reduced-motion:reduce){.vista.viva,.vista.sale{animation:none}}
+
+/* ═══ TIPOGRAFÍA ═══ */
+h1{font-size:clamp(40px,11vw,64px);font-weight:500;letter-spacing:-.045em;line-height:.99}
+h1 .serif{font-size:1.06em;letter-spacing:-.02em;color:var(--muted2)}
+h2{font-size:clamp(30px,8vw,46px);font-weight:500;letter-spacing:-.035em;line-height:1.02}
+h2 .serif{color:var(--muted2);letter-spacing:-.02em}
+h3{font-size:22px;font-weight:500;letter-spacing:-.02em;line-height:1.22}
+p{font-size:16px;line-height:1.6;color:var(--muted)}
+.intro{font-size:18px;line-height:1.55;font-weight:300;color:var(--muted)}
+.rotulo{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.tenue{font-size:14px;line-height:1.55;color:var(--muted2)}
+
+/* ═══ PÍLDORAS ═══ */
+.pildora{
+  display:inline-flex;align-items:center;gap:9px;height:36px;padding:0 16px 0 6px;
+  border:1px solid var(--line2);border-radius:18px;font-size:13.5px;color:var(--muted);
+}
+.pildora b{
+  height:24px;padding:0 10px;border-radius:12px;background:var(--s4);color:var(--tinta);
+  font-size:11px;font-weight:400;display:flex;align-items:center;
+  font-family:'Geist Mono',ui-monospace,monospace;
+}
+.tira{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);margin-top:20px}
+
+/* ═══ TARJETAS ═══ */
+.tarjeta{border:1px solid var(--line);border-radius:24px;background:var(--s1);padding:28px 22px}
+.cab-tarjeta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.cab-tarjeta .tag{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+.cab-tarjeta .num{font-size:11px;color:var(--faint)}
+.insignia{
+  height:26px;padding:0 11px;border-radius:13px;background:var(--acento);color:var(--sobre-acento);
+  font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;display:inline-flex;align-items:center;
+}
+
+/* lista con tildes */
+.tildes{display:flex;flex-direction:column;gap:12px}
+.tildes div{display:flex;gap:10px;font-size:15px;line-height:1.45;color:var(--fg2)}
+.tildes svg{flex:0 0 auto;width:16px;height:16px;margin-top:3px;stroke:var(--tinta)}
+.tachado{color:var(--muted2);text-decoration:line-through}
+.gratis{color:var(--tinta)}
+
+/* ═══ PORTADA ═══ */
+.portada{text-align:center}
+.portada h1{margin:24px 0 20px}
+.portada .intro{max-width:34ch;margin:0 auto}
+.entrega{margin-top:34px;text-align:left}
+.entrega .rotulo{display:block;margin-bottom:18px}
+
+.separa{border:0;height:1px;background:var(--line);margin:56px 0 38px}
+.carta{text-align:left}
+.carta p{font-size:16.5px;line-height:1.62;color:var(--muted)}
+.carta p+p{margin-top:16px}
+.carta p.fuerte{color:var(--fg);font-weight:400}
+.carta .grito{font-size:30px;line-height:1.2;color:var(--fg);margin-top:26px}
+.tierra{margin-top:30px;padding:26px 22px;border-radius:24px;border:1px solid var(--line2);background:var(--s2)}
+.tierra p{color:var(--fg2);font-size:16.5px}
+
+/* ═══ PREGUNTAS ═══ */
+.enunciado{margin:14px 0 30px}
+.opciones{display:flex;flex-direction:column;gap:10px}
+.op{
+  display:flex;align-items:center;gap:14px;width:100%;min-height:64px;
+  font:inherit;font-size:16px;font-weight:400;line-height:1.36;text-align:left;color:var(--fg2);
+  background:var(--s1);border:1px solid var(--line);border-radius:18px;
+  padding:17px 20px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:border-color .18s var(--curva),background .18s var(--curva),color .18s var(--curva);
+}
+.op .tecla{
+  display:none;flex:0 0 auto;width:26px;height:26px;border:1px solid var(--line3);border-radius:13px;
+  align-items:center;justify-content:center;font-size:11px;color:var(--faint);
+  font-family:'Geist Mono',ui-monospace,monospace;transition:inherit;
+}
+.op .texto{flex:1 1 auto}
+@media (hover:hover) and (pointer:fine) and (min-width:700px){.op .tecla{display:flex}}
+@media(hover:hover){
+  .op:hover{border-color:var(--line3);background:var(--s3);color:var(--fg)}
+  .op:hover .tecla{color:var(--muted);border-color:var(--muted2)}
+}
+.op:focus-visible{outline:2px solid var(--acento);outline-offset:3px}
+.op.elegida{background:var(--inv);border-color:var(--inv);color:var(--on-inv);font-weight:500}
+.op.elegida .tecla{border-color:rgba(128,128,128,.4);color:var(--on-inv)}
+.op[disabled]{cursor:default}
+
+.pie-nav{display:flex;align-items:center;gap:18px;margin-top:28px;min-height:20px}
+.txt{background:none;border:0;cursor:pointer;padding:6px 0;font:inherit;font-size:14px;color:var(--muted2);transition:color .16s}
+.txt:hover{color:var(--fg)}
+.ayuda{display:none;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-left:auto}
+@media (hover:hover) and (pointer:fine) and (min-width:700px){.ayuda{display:block}}
+
+/* ═══ FORMULARIO ═══ */
+.campo{margin-top:18px}
+.campo label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:9px}
+.campo input{
+  width:100%;font:inherit;font-size:16px;color:var(--fg);
+  background:var(--s1);border:1px solid var(--line3);border-radius:28px;
+  padding:0 22px;height:56px;
+  transition:border-color .2s var(--curva);
+}
+.campo input::placeholder{color:var(--faint)}
+.campo input:focus{outline:0;border-color:var(--acento)}
+.aviso{font-size:14px;color:var(--alerta);margin-top:14px;display:none}
+.aviso.viva{display:block}
+
+/* ═══ BOTONES ═══ */
+.cta{
+  display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  font:inherit;font-size:16px;font-weight:500;line-height:1.3;
+  background:var(--inv);color:var(--on-inv);border:0;border-radius:30px;
+  min-height:60px;padding:16px 24px;margin-top:28px;cursor:pointer;text-decoration:none;
+  transition:opacity .18s var(--curva),transform .18s var(--curva);
+  -webkit-tap-highlight-color:transparent;text-align:center;
+}
+.cta svg{flex:0 0 auto;width:16px;height:16px}
+.cta:hover{opacity:.88;transform:translateY(-1px)}
+.cta:focus-visible{outline:2px solid var(--acento);outline-offset:4px}
+.cta[disabled]{opacity:.5;cursor:wait;transform:none}
+.cta-2{
+  display:flex;align-items:center;justify-content:center;width:100%;min-height:56px;
+  margin-top:18px;padding:14px 22px;cursor:pointer;border-radius:28px;
+  font:inherit;font-size:15px;font-weight:400;color:var(--fg);
+  background:transparent;border:1px solid var(--line3);
+  transition:border-color .18s var(--curva),background .18s var(--curva);
+}
+.cta-2:hover{border-color:var(--fg);background:var(--s1)}
+
+/* ═══ CALCULANDO ═══ */
+.calcula{text-align:center}
+.orbe{
+  width:min(46vw,160px);aspect-ratio:1;margin:0 auto 34px;border-radius:50%;
+  background:radial-gradient(40% 44% at 34% 32%,var(--acento),transparent 70%),
+             radial-gradient(46% 48% at 70% 44%,#8E7A55,transparent 72%),
+             radial-gradient(56% 56% at 50% 72%,var(--s4),transparent 76%);
+  filter:blur(12px);animation:respira 5.5s ease-in-out infinite;
+}
+@keyframes respira{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.06) rotate(8deg)}}
+@media(prefers-reduced-motion:reduce){.orbe{animation:none}}
+.bonus-tit{font-size:16px;color:var(--muted);margin:26px 0 18px;text-align:left}
+
+/* ═══ RESULTADO ═══ */
+.perfil-cab{text-align:center;margin-bottom:34px}
+.perfil-cab .rotulo{display:block;margin-bottom:16px}
+.perfil-cab h1{margin-bottom:14px}
+.perfil-cab p{max-width:30ch;margin:0 auto}
+.lectura{display:flex;flex-direction:column;gap:12px;margin-bottom:26px}
+.lectura article{border:1px solid var(--line);border-radius:24px;background:var(--s1);padding:24px 22px}
+.lectura p{color:var(--fg2);font-size:16px;line-height:1.55}
+
+.compartir{margin-top:28px;padding:28px 22px;border-radius:24px;border:1px solid var(--line2);background:var(--s2);text-align:center}
+.compartir h3{margin-bottom:9px}
+.wsp{margin-top:14px;padding:28px 22px;border-radius:24px;border:1px solid var(--line);background:var(--s1)}
+.wsp h3{margin-bottom:9px}
+.wsp .hecho{display:none;font-size:16px;color:var(--tinta)}
+.wsp.listo .form{display:none}
+.wsp.listo .hecho{display:block}
+
+/* ═══ OFERTA ═══ */
+.oferta{margin-top:56px;border:1px solid var(--acento);border-radius:28px;background:var(--s3);padding:32px 22px}
+.oferta .cab-tarjeta{margin-bottom:14px}
+.oferta .cab-tarjeta .tag{color:var(--tinta)}
+.oferta h2{font-size:clamp(28px,7vw,38px);margin-bottom:14px}
+.oferta .intro{font-size:16px;color:var(--muted)}
+/* ── Oferta: stack de valor ── */
+.oferta{padding:28px 20px 26px}
+.oferta .cab-tarjeta .tag{font-family:inherit;text-transform:none;letter-spacing:0;font-size:13px}
+.oferta .insignia{background:none;border:0;padding:0;font-family:inherit;text-transform:none;letter-spacing:0;font-size:13px;color:var(--muted2)}
+.lista{margin-top:26px;font-feature-settings:'tnum' 1}
+.lista h3{font-size:13px;font-weight:400;color:var(--muted2);padding-bottom:10px}
+.it{display:flex;align-items:baseline;gap:8px;padding:13px 0;border-top:1px solid var(--line2);font-size:14.5px;color:var(--fg2)}
+.it>span{flex:1 1 auto;min-width:0}
+.it small{display:block;font-size:14px;font-weight:300;color:var(--muted2);margin-top:3px}
+.it .v{flex:0 0 auto;font-style:normal;font-weight:300;font-size:13.5px;color:var(--muted2);white-space:nowrap;text-align:right}
+.it s.v{text-decoration-thickness:1px}
+.it .g{flex:0 0 auto;font-style:normal;font-weight:500;font-size:14px;color:var(--tinta);white-space:nowrap;text-align:right;min-width:34px}
+.it.main{align-items:center;font-size:22px;font-weight:500;letter-spacing:-.02em;color:var(--fg);padding:20px 18px;margin:2px 0 6px;background:var(--s4);border:1px solid var(--line3);border-radius:16px}
+.it.main .v{font-size:22px;font-weight:500;letter-spacing:-.02em;color:var(--fg)}
+.extras{padding:14px 0 12px;font-size:13px;color:var(--tinta)}
+.tot{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--fg2);padding-top:14px;margin-top:6px;font-size:15px;color:var(--muted2)}
+.tot s{text-decoration-thickness:1px;font-size:17px;font-weight:300}
+.hoy{display:flex;justify-content:space-between;align-items:flex-end;margin-top:22px;font-feature-settings:'tnum' 1}
+.hoy .l{font-size:15px;color:var(--fg2);padding-bottom:9px}
+.hoy .pr{font-size:clamp(42px,13vw,54px);font-weight:500;letter-spacing:-.04em;line-height:1}
+.ahorro{margin-top:14px;background:transparent;color:var(--tinta);border:1px solid color-mix(in srgb,var(--acento) 50%,transparent);border-radius:14px;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;font-size:18px;font-weight:500;letter-spacing:-.01em}
+.ahorro b{font-weight:500;font-size:18px;padding-left:16px;border-left:1px solid color-mix(in srgb,var(--acento) 50%,transparent)}
+.cuo{margin-top:10px;font-size:14px;color:var(--muted2);font-weight:300}
+.oferta .cta{background:var(--acento);color:var(--sobre-acento);min-height:76px;font-size:clamp(16px,4.7vw,20px);font-weight:600;letter-spacing:-.01em;margin-top:26px;padding:16px 18px;gap:12px;white-space:nowrap;box-shadow:0 12px 34px -10px rgba(224,174,94,.65);animation:cta-latido 2.8s ease-in-out infinite}
+.oferta .cta{position:relative;justify-content:center;padding:14px 50px;gap:0;white-space:nowrap;font-size:clamp(13px,3.8vw,19px)}
+.cta-t{display:flex;flex-direction:column;align-items:center;text-align:center;line-height:1.15}
+.cta-t small{font-size:.8em;font-weight:500;opacity:.8;letter-spacing:0;margin-top:3px}
+.oferta .cta svg{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:34px;height:34px;padding:8px;border-radius:50%;background:var(--sobre-acento);color:var(--acento)}
+@keyframes cta-latido{0%,100%{box-shadow:0 12px 34px -10px rgba(224,174,94,.55)}50%{box-shadow:0 14px 44px -6px rgba(224,174,94,.95)}}
+@media (prefers-reduced-motion:reduce){.oferta .cta{animation:none}}
+@media (max-width:370px){.oferta .cta{font-size:13px;padding:14px 50px}}
+.gar-mini{margin-top:14px;text-align:center;font-size:13.5px;color:var(--muted2)}
+.stock{margin-top:24px}
+.stk{display:flex;justify-content:space-between;font-size:14px;margin-bottom:9px;color:var(--fg2)}
+.stk i{font-style:normal;color:var(--muted2)}
+.stock-riel{height:3px;border-radius:2px;background:var(--line2);overflow:hidden}
+.stock-riel i{display:block;height:100%;width:84%;background:var(--acento)}
+.sube{margin-top:12px;font-size:14px;color:var(--tinta);text-wrap:balance}
+.fija .cta{background:var(--acento);color:var(--sobre-acento);font-weight:600}
+@media (max-width:380px){.oferta{padding:26px 16px 24px}.it{font-size:13.5px;gap:6px}.it .v{font-size:12.5px}.it .g{font-size:13px;min-width:0}.it.main{font-size:20px;padding:18px 14px}.it.main .v{font-size:20px}.ahorro{font-size:16px;padding:12px 14px}.ahorro b{font-size:16px;padding-left:12px}.oferta .cta{min-height:68px;gap:9px}.oferta .cta svg{width:30px;height:30px;padding:7px}}
+
+.voces{display:flex;flex-direction:column;gap:12px;margin-top:34px}
+.voz{padding:26px 22px;border-radius:24px;border:1px solid var(--line)}
+.voz .estrellas{color:var(--tinta);font-size:12px;letter-spacing:.2em;margin-bottom:16px}
+.voz blockquote{font-size:24px;line-height:1.24;color:var(--fg)}
+.voz figcaption{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);margin-top:16px}
+
+.garantia{margin-top:30px;text-align:center;font-size:15px;color:var(--muted2);line-height:1.6}
+
+/* ═══ BARRA FIJA ═══ */
+.fija{
+  position:fixed;left:12px;right:12px;bottom:12px;z-index:40;
+  display:flex;align-items:center;gap:14px;padding:10px 10px 10px 20px;border-radius:32px;
+  margin-bottom:env(safe-area-inset-bottom,0px);
+  background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--line2);
+  transform:translateY(160%);transition:transform .36s var(--curva);
+}
+.fija.viva{transform:translateY(0)}
+.fija-precio{flex:0 0 auto;line-height:1.14}
+.fija-precio b{display:block;font-size:19px;font-weight:500;letter-spacing:-.02em}
+.fija-precio i{font-style:normal;font-size:11px;color:var(--muted2);text-decoration:line-through}
+.fija .cta{margin-top:0;flex:1 1 auto;min-height:46px;padding:12px 18px;font-size:14.5px}
+@media(prefers-reduced-motion:reduce){.fija{transition:none}}
+
+.firma{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:center;margin-top:52px}
+</style>
+</head>
+
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5D5FXKWS"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<header class="tope">
+  <div class="tope-fila">
+    <div class="marca"><span class="sello"><i></i></span><span>NOVAMIND</span></div>
+    <div class="tope-der">
+      <span class="paso mono" id="paso">60 segundos</span>
+      <button class="b-tema" id="b-tema" type="button" aria-label="Cambiar tema">
+        <svg class="sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="luna" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="riel" id="riel"></div>
+</header>
+
+<main class="escena">
+
+  <!-- ═══ PORTADA ═══ -->
+  <section class="vista viva portada" id="v-portada">
+
+    <span class="pildora"><b>GRATIS</b>Test de 60 segundos</span>
+
+    <h1>Descubrí qué te está<br><span class="serif">robando el día.</span></h1>
+    <p class="intro">No es falta de disciplina. Hay cuatro maneras distintas de perder el día, y venís tomando el remedio equivocado.</p>
+
+    <div class="tarjeta entrega">
+      <span class="rotulo mono">Lo que te llevás, gratis</span>
+      <div class="tildes">
+        <div><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg><span>Tu perfil exacto entre los 4, con nombre propio</span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg><span>El error que repetís todos los días sin darte cuenta</span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg><span>Qué hacer distinto desde mañana, según tu perfil</span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg><span>Guía del Reseteo de 15 Minutos en PDF — <span class="tachado">$19.900</span> <span class="gratis mono">HOY $0</span></span></div>
+      </div>
+    </div>
+
+    <button class="cta" id="b-arrancar">
+      Ver qué me está robando el día
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <div class="tira mono"><span>Gratis</span><span>·</span><span>8 preguntas</span><span>·</span><span>Resultado al instante</span></div>
+
+    <hr class="separa">
+
+    <div class="carta">
+      <p class="fuerte">Son las 22:40. Cerraste la compu hace cinco minutos.</p>
+      <p>Trabajaste todo el día. Contestaste 80 mensajes. No paraste ni para almorzar.</p>
+      <p>Y lo que de verdad importaba sigue ahí. Intacto. Esperándote mañana.</p>
+      <p class="grito serif">Otra vez.</p>
+      <p>Seamos honestos: el problema no es tu fuerza de voluntad. Ya probaste con eso.</p>
+      <p>Probaste Notion. Probaste la agenda de papel. Probaste levantarte a las cinco. Cada método te duró cuatro días y volviste exactamente al mismo lugar.</p>
+      <p class="grito serif">¿Sabés por qué?</p>
+      <p class="fuerte">Porque no existe una sola forma de perder el día. Existen cuatro.</p>
+      <p>El Bombero, el Perfeccionista, el Disperso y el Sobrecargado pierden el día por razones distintas. Y necesitan soluciones distintas.</p>
+      <p>Si sos Sobrecargado y aplicás el método del Disperso, no te ordenás. Te hundís más.</p>
+      <p class="fuerte">Hasta hoy nadie te dio el diagnóstico. Te vendieron el remedio.</p>
+
+      <div class="tierra">
+        <p>Ahora imaginate esto: cerrás la compu a las 19 sabiendo exactamente qué hiciste hoy, por qué importó y qué toca mañana. Sin culpa. Sin lista infinita dando vueltas a las tres de la mañana.</p>
+      </div>
+
+      <p style="margin-top:26px">Eso no arranca con más disciplina. Arranca con saber qué te está robando el día.</p>
+      <p>Son 8 preguntas. Un toque cada una. Sesenta segundos.</p>
+      <p class="fuerte">Es gratis y el resultado te aparece en pantalla, al instante.</p>
+    </div>
+
+    <button class="cta" id="b-arrancar2">
+      Quiero mi diagnóstico gratis
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <div class="tira mono"><span>Sin costo</span><span>·</span><span>Sin registro</span><span>·</span><span>Sin llamada de ventas</span></div>
+  </section>
+
+  <!-- ═══ PREGUNTAS ═══ -->
+  <section class="vista" id="v-pregunta" aria-live="polite">
+    <span class="rotulo mono" id="rot-pregunta"></span>
+    <h2 class="enunciado" id="enunciado"></h2>
+    <div class="opciones" id="opciones"></div>
+    <div class="pie-nav">
+      <button class="txt" id="b-atras" type="button">← Volver</button>
+      <span class="ayuda mono">Teclas A · B · C · D</span>
+    </div>
+  </section>
+
+  <!-- ═══ GATE ═══ -->
+  <section class="vista" id="v-gate">
+    <span class="rotulo mono">Perfil calculado</span>
+    <h2 class="enunciado">¿A dónde te mando el <span class="serif">diagnóstico completo?</span></h2>
+    <p>En pantalla ves tu perfil. El diagnóstico completo y la guía del Reseteo de 15 Minutos te llegan al mail enseguida.</p>
+    <div class="campo">
+      <label for="nombre">Tu nombre</label>
+      <input id="nombre" type="text" autocomplete="given-name" placeholder="Sofi" required>
+    </div>
+    <div class="campo">
+      <label for="email">Tu email</label>
+      <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="tu@email.com" required>
+    </div>
+    <div class="aviso" id="aviso"></div>
+    <button class="cta" id="b-ver">
+      Ver mi resultado
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <div class="tira mono"><span>Sin spam</span><span>·</span><span>Baja en un clic</span></div>
+  </section>
+
+  <!-- ═══ BONUS ═══ -->
+  <section class="vista calcula" id="v-bonus">
+    <div class="orbe"></div>
+    <h2>Estoy armando <span class="serif">tu diagnóstico…</span></h2>
+    <p class="bonus-tit">Mientras tanto, una última: ¿qué probaste hasta ahora?</p>
+    <div class="opciones" id="opciones-bonus"></div>
+  </section>
+
+  <!-- ═══ RESULTADO ═══ -->
+  <section class="vista" id="v-resultado">
+    <div class="perfil-cab">
+      <span class="rotulo mono">Tu perfil de caos</span>
+      <h1>Sos <span class="serif" id="r-nombre"></span></h1>
+      <p id="r-linea"></p>
+    </div>
+
+    <div class="lectura">
+      <article>
+        <div class="cab-tarjeta"><span class="tag mono">Tu superpoder</span><span class="num mono">01</span></div>
+        <p id="r-super"></p>
+      </article>
+      <article>
+        <div class="cab-tarjeta"><span class="tag mono">La trampa</span><span class="num mono">02</span></div>
+        <p id="r-sabotaje"></p>
+      </article>
+      <article>
+        <div class="cab-tarjeta"><span class="tag mono">Lo que te pasa a las 22:00</span><span class="num mono">03</span></div>
+        <p id="r-noche"></p>
+      </article>
+    </div>
+
+    <p class="tenue" id="r-mail"></p>
+
+    <div class="compartir">
+      <h3>¿Reconocés a alguien acá?</h3>
+      <p>Pasáselo y comparen perfiles. Tarda un minuto y no hace falta dejar el mail para ver el resultado.</p>
+      <button class="cta-2" id="b-compartir">Compartir mi perfil</button>
+    </div>
+
+    <div class="wsp" id="wsp">
+      <div class="form">
+        <h3>¿Te lo mando también por WhatsApp?</h3>
+        <p>Te escribo yo, Cruz, con el PDF en la mano y sin automatizaciones raras.</p>
+        <div class="campo">
+          <label for="telefono">Tu WhatsApp</label>
+          <input id="telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="11 5555 5555">
+        </div>
+        <button class="cta" id="b-wsp">Mandámelo por WhatsApp</button>
+      </div>
+      <div class="hecho">Listo. Te escribo en los próximos minutos.</div>
+    </div>
+
+    <!-- OFERTA -->
+    <div class="oferta" id="oferta">
+      <div class="cab-tarjeta">
+        <span class="tag mono">Paso 1 · Para tu perfil</span>
+        <span class="insignia mono">Empezá acá</span>
+      </div>
+      <h2 id="r-promesa"></h2>
+      <p class="intro" id="r-pitch"></p>
+
+      <div class="lista">
+        <h3>Todo lo que te llevás</h3>
+        <div class="it main"><span>Journal Productividad<small>90 días · el sistema físico</small></span><em class="v">$36.990</em></div>
+        <div class="extras"><span>Y además, de regalo</span></div>
+        <div class="it"><span>Guía Reseteo de Dopamina</span><s class="v">$14.250</s><em class="g">$0</em></div>
+        <div class="it"><span>Guía Límite Infinito</span><s class="v">$17.500</s><em class="g">$0</em></div>
+        <div class="it"><span>Guía 11 Modelos Mentales</span><s class="v">$14.250</s><em class="g">$0</em></div>
+        <div class="it"><span>Acceso comunidad privada</span><s class="v">$10.000</s><em class="g">$0</em></div>
+        <div class="it"><span>Envío a tu casa</span><s class="v">$8.999</s><em class="g">Gratis</em></div>
+        <div class="tot"><span>Valor total</span><s>$101.989</s></div>
+      </div>
+
+      <div class="hoy"><span class="l">Hoy, por</span><span class="pr">$36.990</span></div>
+      <div class="ahorro"><span>Ahorrás $64.999</span><b>64% OFF</b></div>
+      <p class="cuo">o 3 cuotas sin interés de $12.330</p>
+
+      <a class="cta" id="b-comprar" href="#">
+        <span class="cta-t">Quiero mi sistema completo<small>con 64% OFF</small></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <p class="gar-mini">Garantía Primer Hábito · 30 días</p>
+
+      <div class="stock">
+        <div class="stk"><span>Quedan 47 de 300</span><i>Lote #4</i></div>
+        <div class="stock-riel"><i></i></div>
+        <p class="sube">El precio sube a $48.990 en el próximo lote.</p>
+      </div>
+    </div>
+
+    <div class="voces">
+      <figure class="voz">
+        <div class="estrellas">★★★★★</div>
+        <blockquote class="serif">«Tengo tiempo libre, algo que parecía imposible.»</blockquote>
+        <figcaption class="mono">Mica F. · La Plata</figcaption>
+      </figure>
+      <figure class="voz">
+        <div class="estrellas">★★★★★</div>
+        <blockquote class="serif">«Indispensable para cualquier emprendedor.»</blockquote>
+        <figcaption class="mono">Agustín B. · Buenos Aires</figcaption>
+      </figure>
+    </div>
+
+    <p class="garantia">Usalo 30 días. Si no lográs tu primera semana ordenada, te devolvemos el 100% — y el journal te lo quedás.</p>
+    <p class="firma mono">Novamind · Mente · Cuerpo · Ritual · Tribu</p>
+  </section>
+
+</main>
+
+<div class="fija" id="fija">
+  <div class="fija-precio"><b>$36.990</b><i>$101.989</i></div>
+  <a class="cta" id="b-fija" href="#">Lo quiero</a>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   CONFIG — LO ÚNICO QUE TENÉS QUE EDITAR
+   ═══════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  // 1. La URL que te da Apps Script al publicar (termina en /exec)
+  ENDPOINT: 'https://script.google.com/macros/s/AKfycbwbM5iVINwboCReWCgmr-tdcx0fSSWq0NClyu3zz0MKjNQzNAnknO4m-XiotYA9p0gThA/exec',
+
+  // 1b. Clave compartida. Tiene que ser IDÉNTICA a la CLAVE del Apps Script.
+  CLAVE: 'nm-8f3c-2026',
+
+  // 2. El ID del Pixel de Meta, solo números. Vacío = el quiz funciona igual.
+  PIXEL_ID: '',
+
+  // 3. El link a la página del producto en Tiendanube
+  TIENDA: 'https://novamind.club/productos/journal-productividad-90-dias/',
+
+  // 4. Tu WhatsApp con código de país, solo números
+  WHATSAPP: '5491100000000',
+
+  // 5. Cómo se llama este lead magnet en la planilla y en Brevo
+  LEAD_MAGNET: 'quiz-productividad'
+};
+/* ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ---------- LAS PREGUNTAS ---------- */
+const PREGUNTAS = [
+  { tipo:'avatar', mezclar:false, rot:'Contexto',
+    texto:'Antes de arrancar: <span class="serif">¿cómo son tus días?</span>',
+    ops:[
+      {v:'emprendedor', t:'Tengo mi propio proyecto: nadie me ordena el día'},
+      {v:'empleado',    t:'Trabajo en relación de dependencia'},
+      {v:'estudiante',  t:'Estudio y trabajo al mismo tiempo'},
+      {v:'lider',       t:'Lidero un equipo'}
+    ]},
+
+  { tipo:'perfil', peso:1, mezclar:true, rot:'El patrón',
+    texto:'Son las 9 de la mañana. <span class="serif">¿Cómo arrancó tu día?</span>',
+    ops:[
+      {p:'B', t:'Ya respondí tres urgencias que no eran mías'},
+      {p:'P', t:'Todavía estoy ordenando todo para empezar bien'},
+      {p:'D', t:'Abrí el mail, después Instagram… ya ni sé'},
+      {p:'S', t:'Mirando la lista sin saber por dónde empezar'}
+    ]},
+
+  { tipo:'perfil', peso:1, mezclar:true, rot:'El patrón',
+    texto:'Tu lista de tareas de hoy, <span class="serif">¿cuál se parece más?</span>',
+    ops:[
+      {p:'S', t:'Tiene más de 20 cosas y sigue creciendo'},
+      {p:'B', t:'No tengo lista: respondo lo que aparece'},
+      {p:'P', t:'Tiene pocas, pero cada una me lleva el triple'},
+      {p:'D', t:'Son varias listas empezadas en distintos lados'}
+    ]},
+
+  { tipo:'perfil', peso:1, mezclar:true, rot:'El patrón',
+    texto:'Aparece una tarea grande e importante. <span class="serif">¿Qué pasa?</span>',
+    ops:[
+      {p:'P', t:'La pospongo hasta poder hacerla bien'},
+      {p:'D', t:'La empiezo con todo, hasta que aparece otra cosa'},
+      {p:'B', t:'Nunca llego: siempre hay algo más urgente'},
+      {p:'S', t:'La sumo a la montaña y me pesa hasta que la hago'}
+    ]},
+
+  { tipo:'perfil', peso:1, mezclar:true, rot:'El patrón',
+    texto:'Tu celular mientras trabajás, <span class="serif">¿qué hacés con él?</span>',
+    ops:[
+      {p:'D', t:'Lo agarro un segundo y pierdo 20 minutos'},
+      {p:'B', t:'Vivo respondiendo: si no contesto ya, algo explota'},
+      {p:'S', t:'Anoto más cosas que tengo que hacer'},
+      {p:'P', t:'Busco una referencia más antes de arrancar'}
+    ]},
+
+  { tipo:'perfil', peso:2, mezclar:true, rot:'El cierre del día',
+    texto:'Terminás el día y sentís que… <span class="serif">elegí la que más duele.</span>',
+    ops:[
+      {p:'B', t:'Apagué incendios y lo importante quedó igual'},
+      {p:'P', t:'Hice poco pero impecable, y me quedó todo lo demás'},
+      {p:'D', t:'Toqué diez cosas y no cerré ninguna'},
+      {p:'S', t:'No llegué, como siempre. Es demasiado.'}
+    ]},
+
+  { tipo:'calor', mezclar:false, rot:'Hace cuánto',
+    texto:'Seamos honestos: <span class="serif">¿hace cuánto venís así?</span>',
+    ops:[
+      {v:3, t:'Más de un año. Me está costando el humor o el sueño'},
+      {v:2, t:'Unos meses, y ya me molesta en serio'},
+      {v:1, t:'Van y vienen épocas; esta es una de las malas'},
+      {v:0, t:'No es grave, tengo curiosidad nomás'}
+    ]},
+
+  { tipo:'perfil', peso:2, mezclar:true, rot:'En tus palabras',
+    texto:'Última: <span class="serif">¿cuál de estas frases dirías vos?</span>',
+    ops:[
+      {p:'B', t:'«Vivo apagando incendios»'},
+      {p:'P', t:'«Si no lo hago bien, prefiero no hacerlo»'},
+      {p:'D', t:'«Me cuesta terminar lo que empiezo»'},
+      {p:'S', t:'«Estoy a mil, no llego a nada»'}
+    ]}
+];
+
+const BONUS = [
+  {v:'apps',   t:'Apps: Notion, Todoist, calendarios'},
+  {v:'papel',  t:'Agenda o cuaderno de papel'},
+  {v:'listas', t:'Listas sueltas en el celular'},
+  {v:'nada',   t:'Nada estructurado, la verdad'}
+];
+
+/* ---------- LOS PERFILES ---------- */
+const PERFILES = {
+  B:{
+    nombre:'El Bombero',
+    linea:'Tu día lo maneja el incendio más ruidoso.',
+    super:'Resolvés en diez minutos lo que a otro le lleva un día. Cuando algo se prende fuego, te llaman a vos.',
+    sabotaje:'Cada incendio apagado te da una mini sensación de logro, y tu cabeza se volvió adicta a eso. Lo importante no grita, entonces nunca llega.',
+    noche:'Cerrás la compu con la sensación de haber corrido ocho horas sin moverte del lugar.',
+    promesa:'La mañana <span class="serif">protegida</span>',
+    pitch:'Tus 3 prioridades decididas anoche, ejecutadas antes de que llegue el primer incendio. El bono que más te sirve es la guía Reseteo de Dopamina: la adicción a lo urgente se desarma, no se aguanta.',
+    compartir:'Me salió "El Bombero" en el test de Novamind: vivo apagando incendios ajenos. ¿Cuál te sale a vos?'
+  },
+  P:{
+    nombre:'El Perfeccionista',
+    linea:'Dos tareas perfectas; ocho sin arrancar.',
+    super:'Lo que entregás no se discute. Tenés un estándar que la mayoría ni se plantea.',
+    sabotaje:'Confundís exigencia con avance. Por eso empezar te sale carísimo, y lo no empezado te pesa más que lo imperfecto terminado.',
+    noche:'Te acostás con la lista intacta y la sensación de que mañana tampoco va a alcanzar.',
+    promesa:'Terminar <span class="serif">sin culpa</span>',
+    pitch:'Un sistema que decide cuándo algo está listo, para que no lo decidas vos a las 23. El bono que más te sirve son las plantillas de revisión: cerrás la semana en 10 minutos y la soltás.',
+    compartir:'Me salió "El Perfeccionista" en el test de Novamind. Dolió. ¿Cuál te sale a vos?'
+  },
+  D:{
+    nombre:'El Disperso',
+    linea:'Doce frentes abiertos, ninguno cerrado.',
+    super:'Energía e ideas te sobran. Arrancás cosas que otros ni se animan a pensar.',
+    sabotaje:'Tu cabeza busca novedad, y cada frente nuevo es una descarga de novedad. No es un problema de atención: nunca elegiste uno solo que merezca defenderse.',
+    noche:'Tocaste diez cosas, no cerraste ninguna, y no sabrías decir en qué se te fue el día.',
+    promesa:'Una cosa por vez, <span class="serif">sostenida</span>',
+    pitch:'El papel no tiene pestañas ni notificaciones. Escribís a mano las 3 prioridades la noche anterior, y a la mañana no decidís: ejecutás. El bono que más te sirve es la guía Reseteo de Dopamina.',
+    compartir:'Me salió "El Disperso" en el test de Novamind: doce frentes abiertos, ninguno cerrado. ¿Cuál te sale a vos?'
+  },
+  S:{
+    nombre:'El Sobrecargado',
+    linea:'Tu lista no es una lista: es una montaña.',
+    super:'Cargás con lo tuyo y con lo ajeno, y aun así la gente sabe que puede contar con vos.',
+    sabotaje:'Creés que el problema es de capacidad, que tenés que rendir más. Es de volumen: nadie hace 40 cosas por día y nadie te enseñó a filtrar.',
+    noche:'Te vas a dormir con las 40 cosas dando vueltas en la cabeza, repasándolas para no olvidarte.',
+    promesa:'El filtro que <span class="serif">decide por vos</span>',
+    pitch:'De 40 pendientes a 3 prioridades, cada noche, sin culpa. Arranca con el vaciado mental y sigue con el filtro que elige por vos. El bono que más te sirve es la comunidad privada.',
+    compartir:'Me salió "El Sobrecargado" en el test de Novamind: mi lista es una montaña. ¿Cuál te sale a vos?'
+  }
+};
+
+/* ---------- ESTADO ---------- */
+const estado = {
+  i:0, perfil:'', avatar:'', calor:0, probo:'',
+  puntos:{B:0,P:0,D:0,S:0},
+  respuestas:{}, historial:[],
+  qid:'', utm:{}, enviado:false, pantalla:'portada'
+};
+
+const LETRAS = ['A','B','C','D'];
+const $ = id => document.getElementById(id);
+const suave = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- TEMA ---------- */
+(function(){
+  try{ const g = localStorage.getItem('nm_tema'); if (g) document.documentElement.dataset.tema = g; }catch(e){}
+})();
+$('b-tema').addEventListener('click', () => {
+  const nuevo = document.documentElement.dataset.tema === 'claro' ? 'oscuro' : 'claro';
+  document.documentElement.dataset.tema = nuevo;
+  try{ localStorage.setItem('nm_tema', nuevo); }catch(e){}
+});
+
+/* ---------- UTILIDADES ---------- */
+function nuevoId(){
+  return 'nm' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+
+function capturarUTM(){
+  const p = new URLSearchParams(location.search);
+  const leer = k => (p.get(k) || '').slice(0,120);
+  const utm = {
+    utm_source:leer('utm_source'), utm_medium:leer('utm_medium'),
+    utm_campaign:leer('utm_campaign'), utm_content:leer('utm_content'),
+    utm_term:leer('utm_term'), fbclid:leer('fbclid'),
+    placement:leer('placement'),
+    referrer:(document.referrer || '').slice(0,200),
+    landing:location.pathname
+  };
+  try{
+    if (utm.utm_source || utm.fbclid) sessionStorage.setItem('nm_utm', JSON.stringify(utm));
+    else { const g = sessionStorage.getItem('nm_utm'); if (g) return JSON.parse(g); }
+  }catch(e){}
+  return utm;
+}
+
+function mezclar(arr){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function verVista(id, nombre){
+  const actual = document.querySelector('.vista.viva');
+  estado.pantalla = nombre;
+  const pintar = () => {
+    document.querySelectorAll('.vista').forEach(v => v.classList.remove('viva','sale'));
+    $(id).classList.add('viva');
+    window.scrollTo(0,0);
+    if (nombre !== 'resultado') $('fija').classList.remove('viva');
+  };
+  if (actual && suave()){ actual.classList.add('sale'); setTimeout(pintar, 170); }
+  else pintar();
+}
+
+/* ---------- PROGRESO ---------- */
+function armarRiel(){
+  const r = $('riel');
+  r.innerHTML = '';
+  for (let k=0;k<PREGUNTAS.length;k++) r.appendChild(document.createElement('span'));
+}
+function marcarRiel(){
+  const seg = $('riel').children;
+  for (let k=0;k<seg.length;k++) seg[k].classList.toggle('lleno', k < estado.i);
+  const p = $('paso');
+  if (estado.pantalla === 'pregunta') p.textContent = (estado.i+1) + ' de ' + PREGUNTAS.length;
+  else if (estado.pantalla === 'portada') p.textContent = '60 segundos';
+  else if (estado.pantalla === 'gate') p.textContent = 'Último paso';
+  else if (estado.pantalla === 'bonus') p.textContent = 'Calculando';
+  else p.textContent = '';
+}
+
+/* ---------- PIXEL ---------- */
+function pixel(evento, extra){
+  if (window.NM && NM.track) NM.track(evento, extra || {});
+}
+function pixelEstandar(evento, extra, eventID){
+  if (window.NM && NM.track) NM.track(evento, extra || {});
+}
+/* El Pixel lo carga el bloque de tracking del <head>. */
+
+/* ---------- OPCIONES ---------- */
+function crearOpcion(texto, indice, alElegir){
+  const b = document.createElement('button');
+  b.className = 'op';
+  b.type = 'button';
+  b.innerHTML = '<span class="tecla"></span><span class="texto"></span>';
+  b.querySelector('.tecla').textContent = LETRAS[indice];
+  b.querySelector('.texto').textContent = texto;
+  b.addEventListener('click', () => alElegir(b));
+  return b;
+}
+
+/* ---------- PREGUNTAS ---------- */
+function pintarPregunta(){
+  const q = PREGUNTAS[estado.i];
+  $('enunciado').innerHTML = q.texto;
+  $('rot-pregunta').textContent = q.rot || '';
+  $('b-atras').style.visibility = estado.i === 0 ? 'hidden' : 'visible';
+
+  const cont = $('opciones');
+  cont.innerHTML = '';
+  const ops = q.mezclar ? mezclar(q.ops) : q.ops;
+  ops.forEach((op, k) => cont.appendChild(crearOpcion(op.t, k, b => responder(q, op, b))));
+
+  verVista('v-pregunta','pregunta');
+  marcarRiel();
+  try{
+    var ahora = Date.now();
+    if (window.NM) delete NM._ids.QuizPregunta;   /* un id nuevo por pregunta */
+    pixel('QuizPregunta', {pregunta: estado.i + 1, total: PREGUNTAS.length,
+      segundos: window.__nmT ? Math.round((ahora - window.__nmT) / 1000) : 0});
+    window.__nmT = ahora;
+  }catch(e){}
+}
+
+function responder(q, op, boton){
+  if (boton.disabled) return;
+  document.querySelectorAll('#opciones .op').forEach(b => b.disabled = true);
+  boton.classList.add('elegida');
+
+  const clave = 'q' + (estado.i + 1);
+  estado.historial.push({i:estado.i});
+
+  if (q.tipo === 'perfil'){ estado.puntos[op.p] += q.peso; estado.respuestas[clave] = op.p; }
+  else if (q.tipo === 'avatar'){ estado.avatar = op.v; estado.respuestas[clave] = op.v; }
+  else if (q.tipo === 'calor'){ estado.calor = op.v; estado.respuestas[clave] = String(op.v); }
+
+  setTimeout(() => {
+    estado.i++;
+    if (estado.i < PREGUNTAS.length) pintarPregunta();
+    else {
+      verVista('v-gate','gate');
+      marcarRiel();
+      pixel('QuizComplete');
+      setTimeout(() => $('nombre').focus(), 480);
+    }
+  }, suave() ? 240 : 0);
+}
+
+function volver(){
+  if (!estado.historial.length) return;
+  const ultimo = estado.historial.pop();
+  const clave = 'q' + (ultimo.i + 1);
+  const q = PREGUNTAS[ultimo.i];
+  if (q.tipo === 'perfil' && estado.respuestas[clave]) estado.puntos[estado.respuestas[clave]] -= q.peso;
+  delete estado.respuestas[clave];
+  estado.i = ultimo.i;
+  pintarPregunta();
+}
+
+/* ---------- CÁLCULO ---------- */
+function calcularPerfil(){
+  const p = estado.puntos;
+  const max = Math.max(p.B,p.P,p.D,p.S);
+  const empatados = ['B','P','D','S'].filter(k => p[k] === max);
+  if (empatados.length === 1) return empatados[0];
+  if (estado.respuestas.q8 && empatados.includes(estado.respuestas.q8)) return estado.respuestas.q8;
+  if (estado.respuestas.q6 && empatados.includes(estado.respuestas.q6)) return estado.respuestas.q6;
+  return ['B','S','D','P'].find(k => empatados.includes(k));
+}
+
+function nivelCalor(){
+  if (estado.calor >= 3) return 'alto';
+  if (estado.calor === 2) return 'medio';
+  return 'bajo';
+}
+
+/* ---------- ENVÍO ---------- */
+function enviar(datos){
+  if (!CONFIG.ENDPOINT || CONFIG.ENDPOINT.indexOf('PEGAR') === 0){
+    console.warn('CONFIG.ENDPOINT sin configurar: no se envió nada.');
+    return Promise.resolve();
+  }
+  datos.clave = CONFIG.CLAVE;
+  return fetch(CONFIG.ENDPOINT, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+    body:new URLSearchParams(datos).toString()
+  }).catch(e => console.warn('No se pudo enviar:', e));
+}
+
+function paquete(){
+  return Object.assign({
+    accion:'alta',
+    qid:estado.qid,
+    nombre:$('nombre').value.trim(),
+    email:$('email').value.trim().toLowerCase(),
+    telefono:'',
+    perfil:estado.perfil,
+    avatar:estado.avatar,
+    calor:nivelCalor(),
+    calor_pts:String(estado.calor),
+    probo:estado.probo,
+    lead_magnet:CONFIG.LEAD_MAGNET,
+    pts_b:String(estado.puntos.B), pts_p:String(estado.puntos.P),
+    pts_d:String(estado.puntos.D), pts_s:String(estado.puntos.S),
+    dispositivo:/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+    pagina: location.pathname
+  }, estado.respuestas, estado.utm);
+}
+
+function mandarAlta(){
+  if (estado.enviado) return;
+  estado.enviado = true;
+  enviar(paquete());
+}
+
+/* ---------- GATE ---------- */
+function validar(){
+  const nombre = $('nombre').value.trim();
+  const email  = $('email').value.trim();
+  const av = $('aviso');
+  if (nombre.length < 2){ av.textContent = 'Poné tu nombre, así el mail no arranca con "Hola,".'; av.classList.add('viva'); $('nombre').focus(); return false; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ av.textContent = 'Revisá el mail: parece que le falta algo.'; av.classList.add('viva'); $('email').focus(); return false; }
+  av.classList.remove('viva');
+  return true;
+}
+
+function confirmarGate(){
+  if (!validar()) return;
+  $('b-ver').disabled = true;
+  $('b-ver').textContent = 'Calculando';
+
+  estado.perfil = calcularPerfil();
+
+  try{ if(window.NM&&NM.identificar) NM.identificar($('email').value.trim().toLowerCase(),{nombre:$('nombre').value.trim(),perfil:estado.perfil,avatar:estado.avatar,calor:nivelCalor()}); }catch(e){}
+  pixelEstandar('Lead', {content_name:CONFIG.LEAD_MAGNET, content_category:estado.perfil}, estado.qid);
+  pixel('QuizLead', {perfil:estado.perfil, avatar:estado.avatar, calor:nivelCalor()});
+
+  verVista('v-bonus','bonus');
+  marcarRiel();
+  setTimeout(() => { if (!estado.enviado){ mandarAlta(); pintarResultado(); } }, 12000);
+}
+
+/* ---------- BONUS ---------- */
+function pintarBonus(){
+  const cont = $('opciones-bonus');
+  cont.innerHTML = '';
+  mezclar(BONUS).forEach((op, k) => {
+    cont.appendChild(crearOpcion(op.t, k, b => {
+      if (b.disabled) return;
+      estado.probo = op.v;
+      document.querySelectorAll('#opciones-bonus .op').forEach(x => x.disabled = true);
+      b.classList.add('elegida');
+      setTimeout(() => { mandarAlta(); pintarResultado(); }, suave() ? 520 : 0);
+    }));
+  });
+}
+
+/* ---------- RESULTADO ---------- */
+function pintarResultado(){
+  const p = PERFILES[estado.perfil];
+  if (!p) return;
+  $('r-nombre').textContent   = p.nombre;
+  $('r-linea').textContent    = p.linea;
+  $('r-super').textContent    = p.super;
+  $('r-sabotaje').textContent = p.sabotaje;
+  $('r-noche').textContent    = p.noche;
+  $('r-mail').textContent     = 'Tu diagnóstico completo y la guía del Reseteo de 15 Minutos ya viajan a ' + $('email').value.trim().toLowerCase() + '. Si no aparecen en unos minutos, mirá en Promociones.';
+  $('r-promesa').innerHTML    = p.promesa;
+  $('r-pitch').textContent    = p.pitch;
+
+  let destino = CONFIG.TIENDA;
+  try{
+    const url = new URL(CONFIG.TIENDA);
+    url.searchParams.set('utm_source','quiz');
+    url.searchParams.set('utm_medium','resultado');
+    url.searchParams.set('utm_campaign', estado.perfil);
+    destino = url.toString();
+  }catch(e){}
+  $('b-comprar').href = destino;
+  $('b-fija').href = destino;
+
+  verVista('v-resultado','resultado');
+  marcarRiel();
+  pixel('QuizResultado', {perfil:estado.perfil});
+}
+
+/* ---------- BARRA FIJA ---------- */
+function vigilarBarra(){
+  if (estado.pantalla !== 'resultado'){ $('fija').classList.remove('viva'); return; }
+  const r = $('b-comprar').getBoundingClientRect();
+  const visible = r.top < window.innerHeight - 90 && r.bottom > 90;
+  $('fija').classList.toggle('viva', window.scrollY > 340 && !visible);
+}
+window.addEventListener('scroll', vigilarBarra, {passive:true});
+window.addEventListener('resize', vigilarBarra);
+
+/* ---------- TELÉFONO ---------- */
+function guardarTelefono(){
+  const tel = $('telefono').value.replace(/[^\d+]/g,'');
+  if (tel.length < 8){ $('telefono').focus(); return; }
+  enviar({accion:'telefono', qid:estado.qid, telefono:tel, email:$('email').value.trim().toLowerCase()});
+  pixel('QuizWhatsApp', {perfil:estado.perfil});
+  $('wsp').classList.add('listo');
+}
+
+/* ---------- COMPARTIR ---------- */
+function compartir(){
+  const p = PERFILES[estado.perfil];
+  const texto = p.compartir + ' ' + location.origin + location.pathname +
+    '?utm_source=share&utm_medium=organico&utm_campaign=quiz-' + estado.perfil.toLowerCase();
+  if (navigator.share) navigator.share({title:'Test de perfil de caos de Novamind', text:texto}).catch(()=>{});
+  else window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+  pixel('QuizCompartir', {perfil:estado.perfil});
+}
+
+/* ---------- TECLADO ---------- */
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const lista = estado.pantalla === 'pregunta' ? '#opciones .op'
+              : estado.pantalla === 'bonus'    ? '#opciones-bonus .op' : null;
+  if (!lista) return;
+  const k = e.key.toUpperCase();
+  let n = LETRAS.indexOf(k);
+  if (n === -1 && /^[1-4]$/.test(k)) n = Number(k) - 1;
+  if (n === -1) return;
+  const botones = document.querySelectorAll(lista);
+  if (botones[n]){ e.preventDefault(); botones[n].click(); }
+});
+
+/* ---------- ARRANQUE ---------- */
+estado.qid = nuevoId();
+estado.utm = capturarUTM();
+armarRiel();
+marcarRiel();
+pintarBonus();
+
+const arrancar = () => { pixel('QuizStart'); pintarPregunta(); };
+$('b-arrancar').addEventListener('click', arrancar);
+$('b-arrancar2').addEventListener('click', arrancar);
+$('b-atras').addEventListener('click', volver);
+$('b-ver').addEventListener('click', confirmarGate);
+$('b-wsp').addEventListener('click', guardarTelefono);
+$('b-compartir').addEventListener('click', compartir);
+$('b-comprar').addEventListener('click', () => pixel('ClickOferta', {perfil:estado.perfil, lugar:'inline'}));
+$('b-fija').addEventListener('click', () => pixel('ClickOferta', {perfil:estado.perfil, lugar:'barra-fija'}));
+/* Avisa una sola vez cuando la persona toca el formulario del email. */
+(function(){
+  var avisado = false;
+  ['nombre','email'].forEach(function(id){
+    var el = $(id);
+    if (el) el.addEventListener('focus', function(){
+      if (avisado) return; avisado = true;
+      pixel('FormularioIniciado', {lugar:'quiz'});
+    });
+  });
+})();
+$('nombre').addEventListener('keydown', e => { if (e.key === 'Enter') $('email').focus(); });
+$('email').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarGate(); });
+$('telefono').addEventListener('keydown', e => { if (e.key === 'Enter') guardarTelefono(); });
+</script>
+</body>
+</html>
